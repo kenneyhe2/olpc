@@ -23,5 +23,19 @@ sudo ./install.sh
 /opt/xo1-tls/bin/xo1-browse            # launch Browse (Sugar session)
 ```
 
+## Acceptance test
+
+Copy `acceptance-test-xo1-browse.sh` to the XO with the tarballs. After `install.sh`:
+
+```sh
+# From root console: env + graceful failure + curl over TLS
+sh acceptance-test-xo1-browse.sh
+
+# From olpc user inside Sugar: also verify Browse actually launches
+sh acceptance-test-xo1-browse.sh --live
+```
+
+Expected final line: `ACCEPTED` (exit 0). Use `--live` only in a Sugar session logged in as `olpc`.
+
 ## Host
 Hyper-V platform (`vmms`); Docker Desktop here uses a WSL2 Linux VM on that platform. Long builds polled every 3 minutes.
