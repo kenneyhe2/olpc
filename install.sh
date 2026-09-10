@@ -60,6 +60,8 @@ cat >/opt/xo1-tls/bin/xo1-browse <<'EOF'
 #
 # Execute to apply env and launch Browse:
 #   /opt/xo1-tls/bin/xo1-browse
+#   /opt/xo1-tls/bin/xo1-browse http://www.yahoo.com
+#   /opt/xo1-tls/bin/xo1-browse -u http://www.yahoo.com
 
 _xo1_is_sourced() {
   if [ -n "${BASH_VERSION:-}" ]; then
@@ -105,12 +107,47 @@ _xo1_sugar_shell_running() {
     | grep -q 'boolean true'
 }
 
+_xo1_normalize_uri_args() {
+  _XO1_URI=
+  _XO1_EXTRA=
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -u|--uri)
+        if [ -z "${2:-}" ]; then
+          echo "xo1-browse: missing URI after $1" >&2
+          exit 1
+        fi
+        _XO1_URI=$2
+        shift 2
+        ;;
+      http://*|https://*|file://*)
+        _XO1_URI=$1
+        shift
+        ;;
+      *)
+        _XO1_EXTRA="${_XO1_EXTRA:+$_XO1_EXTRA }$1"
+        shift
+        ;;
+    esac
+  done
+}
+
 _xo1_launch_browse() {
+  _xo1_normalize_uri_args "$@"
+
   if command -v sugar-launch >/dev/null 2>&1 && _xo1_sugar_shell_running; then
-    exec sugar-launch org.laptop.WebActivity "$@"
+    if [ -n "${_XO1_URI:-}" ]; then
+      exec sugar-launch org.laptop.WebActivity -u "$_XO1_URI" $_XO1_EXTRA
+    else
+      exec sugar-launch org.laptop.WebActivity $_XO1_EXTRA
+    fi
   fi
   if command -v sugar-activity >/dev/null 2>&1; then
-    exec sugar-activity Browse "$@"
+    if [ -n "${_XO1_URI:-}" ]; then
+      exec sugar-activity Browse -u "$_XO1_URI" $_XO1_EXTRA
+    else
+      exec sugar-activity Browse $_XO1_EXTRA
+    fi
   fi
   echo "Sugar Browse unavailable (Sugar shell not running or launcher missing)." >&2
   echo "Source for TLS/GTK paths only: . /opt/xo1-tls/bin/xo1-browse" >&2

@@ -156,6 +156,27 @@ else
   rm -f "$OUT" "$ERR"
 fi
 
+# --- URL argument is passed to sugar-activity as -u (Sugar API) ---
+MOCK_BIN=$(mktemp -d /tmp/xo1-mock-bin.XXXXXX)
+MOCK_LOG=$(mktemp /tmp/xo1-mock-log.XXXXXX)
+cat >"$MOCK_BIN/sugar-activity" <<EOF
+#!/bin/sh
+printf '%s\n' "\$*" >"$MOCK_LOG"
+exit 0
+EOF
+chmod +x "$MOCK_BIN/sugar-activity"
+if (
+  export PATH="$MOCK_BIN:/usr/bin:/bin"
+  unset LD_LIBRARY_PATH MOZILLA_FIVE_HOME
+  "$BROWSE" http://www.yahoo.com >/dev/null 2>&1
+  grep -q 'Browse -u http://www.yahoo.com' "$MOCK_LOG"
+); then
+  pass "http URL argument forwarded as Browse -u URI"
+else
+  fail "http URL argument not forwarded as Browse -u URI (got: $(cat "$MOCK_LOG" 2>/dev/null || echo missing))"
+fi
+rm -rf "$MOCK_BIN" "$MOCK_LOG"
+
 # --- TLS curl still works with sourced env ---
 if [ -x /opt/xo1-tls/bin/curl ]; then
   if (
