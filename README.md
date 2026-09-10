@@ -79,5 +79,91 @@ sudo ./install.sh
 /opt/xo1-tls/bin/xo1-browse
 ```
 
+## SSH from Windows (OpenSSH 9.x → XO-1 OpenSSH 5.5)
+
+XO-1 ships **OpenSSH 5.5**, which only offers legacy host keys (`ssh-rsa`, `ssh-dss`). Modern Windows OpenSSH disables those, so you see:
+
+```text
+no matching host key type found. Their offer: ssh-rsa,ssh-dss
+```
+
+XO-1 also does **not** accept `ed25519` keys (added in OpenSSH 6.5). Use **RSA** for `authorized_keys`.
+
+### 1. One-shot test (PowerShell)
+
+```powershell
+ssh -o HostKeyAlgorithms=+ssh-rsa,+ssh-dss -o PubkeyAcceptedAlgorithms=+ssh-rsa olpc@10.0.0.25
+```
+
+If that connects but a later step fails on ciphers/KEX, use the full `Host` block below.
+
+### 2. Persistent config (recommended)
+
+Create or edit `C:\Users\citadelone\.ssh\config`:
+
+```sshconfig
+Host xo1 olpc-xo1 10.0.0.25
+    HostName 10.0.0.25
+    User olpc
+    IdentityFile ~/.ssh/id_rsa_olpc
+
+    # Legacy algorithms required for OpenSSH 5.5 on XO-1
+    HostKeyAlgorithms +ssh-rsa,+ssh-dss
+    PubkeyAcceptedAlgorithms +ssh-rsa
+    KexAlgorithms +diffie-hellman-group-exchange-sha256,+diffie-hellman-group14-sha1,+diffie-hellman-group-exchange-sha1,+diffie-hellman-group1-sha1
+    Ciphers +aes128-ctr,+aes256-ctr,+aes128-cbc,+aes256-cbc
+    MACs +hmac-sha2-256,hmac-sha1
+
+    # Automation on a trusted LAN only (skip host-key prompts)
+    StrictHostKeyChecking accept-new
+```
+
+For fully unattended scripts on a trusted network, change the last line to:
+
+```sshconfig
+    StrictHostKeyChecking no
+    UserKnownHostsFile NUL
+```
+
+Then connect with:
+
+```powershell
+ssh xo1
+```
+
+### 3. RSA key + authorized_keys (passwordless automation)
+
+Generate an RSA key (do **not** reuse `id_ed25519` — XO-1 cannot use it):
+
+```powershell
+ssh-keygen -t rsa -b 2048 -f $env:USERPROFILE\.ssh\id_rsa_olpc
+```
+
+Copy the public key to the XO (first time, use password auth after the config above):
+
+```powershell
+type $env:USERPROFILE\.ssh\id_rsa_olpc.pub | ssh xo1 "mkdir -p .ssh && chmod 700 .ssh && cat >> .ssh/authorized_keys && chmod 600 .ssh/authorized_keys"
+```
+
+Or paste manually on the XO terminal:
+
+```sh
+mkdir -p ~/.ssh && chmod 700 ~/.ssh
+# paste one line from id_rsa_olpc.pub into ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+```
+
+Verify passwordless login:
+
+```powershell
+ssh -i $env:USERPROFILE\.ssh\id_rsa_olpc xo1 whoami
+```
+
+### 4. Automate repo download over SSH
+
+```powershell
+ssh xo1 "wget --no-check-certificate -O download-xo1.sh https://raw.githubusercontent.com/kenneyhe2/olpc/main/download-xo1.sh && chmod +x download-xo1.sh && sudo ./download-xo1.sh"
+```
+
 ## Host
 Hyper-V platform (`vmms`); Docker Desktop here uses a WSL2 Linux VM on that platform. Long builds polled every 3 minutes.
