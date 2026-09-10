@@ -40,7 +40,7 @@ http://http.pkgforge.dev/https://raw.githubusercontent.com/kenneyhe2/olpc/main/i
 
 1. **HTTP wget** (pkgforge, no TLS on XO) — bootstrap `xo-openssl-curl-xo1-i586-glibc212.tar.gz`
 2. **Bundled curl** — fetch gtk2 + xulrunner tarballs over HTTPS
-3. **Deploy** — extract under `/opt`, write `xo1-env.sh` / `xo1-browse`
+3. **Deploy** — extract under `/opt`, write single `xo1-browse` (env + kill prior Browse + launcher)
 
 Skips download for any tarball already in the same directory as `install.sh`.
 
@@ -51,15 +51,28 @@ Skips download for any tarball already in the same directory as `install.sh`.
 /opt/xo1-tls/bin/curl -I https://example.com
 ```
 
-**Sugar Browse** must run on the XO-1 desktop (not over SSH):
+**Sugar Browse** — one script (`xo1-browse` includes env setup). Run on the XO-1 desktop as `olpc` (not over SSH):
 
 ```sh
 # On the XO-1 screen (Sugar), in Terminal:
-. /opt/xo1-tls/bin/xo1-env.sh
-/opt/xo1-tls/bin/xo1-browse
+/opt/xo1-tls/bin/xo1-browse http://www.yahoo.com
 ```
 
-Over SSH you will see `X11 initialization failed` — that is expected without `DISPLAY`.
+Kills any existing Browse for the current user, then opens the URL. Env-only (e.g. for curl):
+
+```sh
+. /opt/xo1-tls/bin/xo1-browse
+/opt/xo1-tls/bin/curl -I https://example.com
+```
+
+Acceptance test after install:
+
+```sh
+sh acceptance-test-xo1-browse.sh           # root console OK
+sh acceptance-test-xo1-browse.sh --live      # olpc in Sugar
+```
+
+Over SSH, executing `xo1-browse` prints a DISPLAY warning — expected. Sourcing still works for curl.
 
 > **Note:** `main` on GitHub may still serve the old deploy-only `install.sh` (~2853 bytes) until the feature branch is merged. The current script is ~5600 bytes and includes HTTP wget fetch. Verify with `wc -c install.sh` after wget.
 
