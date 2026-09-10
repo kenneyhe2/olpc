@@ -91,8 +91,10 @@ XO-1 also does **not** accept `ed25519` keys (added in OpenSSH 6.5). Use **RSA**
 
 ### 1. One-shot test (PowerShell)
 
+**Quote the `-o` values** — PowerShell treats bare commas as array separators and breaks algorithm lists.
+
 ```powershell
-ssh -o HostKeyAlgorithms=+ssh-rsa,+ssh-dss -o PubkeyAcceptedAlgorithms=+ssh-rsa olpc@10.0.0.25
+ssh -o "HostKeyAlgorithms=+ssh-rsa,+ssh-dss" -o "PubkeyAcceptedAlgorithms=+ssh-rsa" olpc@10.0.0.25
 ```
 
 If that connects but a later step fails on ciphers/KEX, use the full `Host` block below.

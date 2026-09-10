@@ -1,5 +1,8 @@
 # Copy to C:\Users\<you>\.ssh\config (merge with existing Host blocks).
 # XO-1 runs OpenSSH 5.5 — modern Windows OpenSSH needs legacy algorithm overrides.
+#
+# PowerShell one-liner (quote -o values; bare commas break the command):
+#   ssh -o "HostKeyAlgorithms=+ssh-rsa,+ssh-dss" -o "PubkeyAcceptedAlgorithms=+ssh-rsa" olpc@10.0.0.25
 
 Host xo1 olpc-xo1 10.0.0.25
     HostName 10.0.0.25
