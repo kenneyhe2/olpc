@@ -96,7 +96,7 @@ On XO: `wget` or `scp` `install.sh` too, place tarballs in the same directory, `
 
 | File | MD5 |
 |------|-----|
-| `install.sh` | `4c027cc171210ac812a2016b2a739dc7` |
+| `install.sh` | `c7919316eca505a8a31b5a94e9d77eaf` |
 | `xo-openssl-curl-xo1-i586-glibc212.tar.gz` | `ae2950be7950f33fee5adc4fdc50adf9` |
 | `xo-gtk2-xo1-i586-glibc212.tar.gz` | `414c040cdd79322f229ff086acbbeb0a` |
 | `xo-xulrunner-1.9.2-geode-i586.tar.gz` | `9a9bf96ced17b919585504aa09707193` |
