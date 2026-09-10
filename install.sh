@@ -76,7 +76,9 @@ fetch_artifacts() {
   xul_local=$(pick 'xo-xulrunner-*-geode-i586.tar.gz')
   [ -n "$xul_local" ] || xul_local=$(pick 'xo-xulrunner-*.tar.gz')
 
-  [ -n "$curl_local" ] && [ -n "$gtk_local" ] && return 0
+  if [ -n "$curl_local" ] && [ -n "$gtk_local" ] && [ -n "$xul_local" ]; then
+    return 0
+  fi
 
   echo "==> Fetch artifacts into $HERE"
 
