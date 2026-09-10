@@ -140,20 +140,63 @@ no matching host key type found. Their offer: ssh-rsa,ssh-dss
 
 XO-1 also does **not** accept `ed25519` keys (added in OpenSSH 6.5). Use **RSA** for `authorized_keys`.
 
+### 0. You still see "Bad key types" on lines 10/12/13?
+
+**Your local file is still wrong.** Repo docs do not change `C:\Users\citadelone\.ssh\config` automatically. OpenSSH reads that file **before** any `-o` flags, so a broken config blocks every `ssh` command.
+
+**Connect right now (skip broken config):**
+
+```powershell
+ssh -F NUL -o "HostKeyAlgorithms=+ssh-rsa" -o "PubkeyAcceptedAlgorithms=+ssh-rsa" -o "KexAlgorithms=+diffie-hellman-group14-sha1,diffie-hellman-group-exchange-sha1" olpc@10.0.0.25
+```
+
+**Fix the config permanently** — run in PowerShell from this repo:
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\fix-ssh-config-windows.ps1
+ssh xo1
+```
+
+Or copy `ssh-config-xo1-only` to `C:\Users\citadelone\.ssh\config-xo1` and use:
+
+```powershell
+ssh -F $env:USERPROFILE\.ssh\config-xo1 olpc@10.0.0.25
+```
+
+**Manual edit** — open `C:\Users\citadelone\.ssh\config` in Notepad and replace lines 10–13. Wrong (what you have now):
+
+```sshconfig
+    HostKeyAlgorithms +ssh-rsa,+ssh-dss
+    KexAlgorithms +diffie-hellman-group-exchange-sha256,+diffie-hellman-group14-sha1,...
+    Ciphers +aes128-ctr,+aes256-ctr,...
+```
+
+Correct:
+
+```sshconfig
+    HostKeyAlgorithms +ssh-rsa
+    PubkeyAcceptedAlgorithms +ssh-rsa
+    KexAlgorithms +diffie-hellman-group-exchange-sha256,diffie-hellman-group14-sha1,diffie-hellman-group-exchange-sha1,diffie-hellman-group1-sha1
+    Ciphers +aes128-ctr,aes256-ctr,aes128-cbc,aes256-cbc
+```
+
+Rules: **no `ssh-dss`**; **only one `+` at the start of each line** (not before every algorithm).
+
 ### 1. One-shot test (PowerShell)
 
 **Quote the `-o` values** — PowerShell treats bare commas as array separators and breaks algorithm lists.
 
-**OpenSSH 9.5+ on Windows** (`OpenSSH_for_Windows_9.5p2` and newer) removed `ssh-dss` at compile time. Do **not** include `ssh-dss` — it causes `Bad key types '+ssh-rsa,+ssh-dss'`. XO-1 also offers `ssh-rsa`, which is enough.
+Use `-F NUL` if your main config still has the old broken block:
 
 ```powershell
-ssh -o "HostKeyAlgorithms=+ssh-rsa" -o "PubkeyAcceptedAlgorithms=+ssh-rsa" olpc@10.0.0.25
+ssh -F NUL -o "HostKeyAlgorithms=+ssh-rsa" -o "PubkeyAcceptedAlgorithms=+ssh-rsa" olpc@10.0.0.25
 ```
 
 If you see `no matching key exchange method found`, add KEX (one `+` at the start of the list only):
 
 ```powershell
-ssh -o "HostKeyAlgorithms=+ssh-rsa" -o "PubkeyAcceptedAlgorithms=+ssh-rsa" -o "KexAlgorithms=+diffie-hellman-group14-sha1,diffie-hellman-group-exchange-sha1" olpc@10.0.0.25
+ssh -F NUL -o "HostKeyAlgorithms=+ssh-rsa" -o "PubkeyAcceptedAlgorithms=+ssh-rsa" -o "KexAlgorithms=+diffie-hellman-group14-sha1,diffie-hellman-group-exchange-sha1" olpc@10.0.0.25
 ```
 
 If that connects but a later step fails on ciphers, use the full `Host` block below.
