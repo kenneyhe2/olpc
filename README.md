@@ -14,8 +14,6 @@ Dynamically linked libraries for OLPC XO-1 (**Geode / i586**), **curl**, and **S
 | `ssh-config-xo1-only` | Standalone SSH config (`ssh -F ...`) |
 | `fix-ssh-config-windows.ps1` | Auto-patch broken Windows SSH config |
 
-There is **no** `download-xo1.sh` — use `install.sh` for fetch and deploy.
-
 ---
 
 ## Quick start
@@ -67,7 +65,7 @@ Over SSH you will see `X11 initialization failed` — that is expected without `
 
 ### HTTP wget helper (individual tarballs)
 
-Build URL in pieces — `echo` then `wget` (plain HTTP, no `--no-check-certificate`):
+Build URL in pieces — `echo` then `wget` (plain HTTP):
 
 ```sh
 pkgforge() {
@@ -98,7 +96,7 @@ On XO: `wget` or `scp` `install.sh` too, place tarballs in the same directory, `
 
 | File | MD5 |
 |------|-----|
-| `install.sh` | `e80901da513d0da69b6d9097fb926567` |
+| `install.sh` | `4c027cc171210ac812a2016b2a739dc7` |
 | `xo-openssl-curl-xo1-i586-glibc212.tar.gz` | `ae2950be7950f33fee5adc4fdc50adf9` |
 | `xo-gtk2-xo1-i586-glibc212.tar.gz` | `414c040cdd79322f229ff086acbbeb0a` |
 | `xo-xulrunner-1.9.2-geode-i586.tar.gz` | `9a9bf96ced17b919585504aa09707193` |
