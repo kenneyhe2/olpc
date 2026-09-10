@@ -144,7 +144,10 @@ deploy_artifacts() {
 
   cat >/opt/xo1-tls/bin/xo1-env.sh <<'EOF'
 # source: . /opt/xo1-tls/bin/xo1-env.sh
-[ -f /opt/xo1-gtk2/gtk2-env.sh ] && . /opt/xo1-gtk2/gtk2-env.sh
+# Do not source gtk2-env.sh — when sourced, $0 is "-bash" and dirname treats -b as a flag.
+GTK=/opt/xo1-gtk2
+export GDK_PIXBUF_MODULEDIR="${GTK}/lib/gdk-pixbuf-2.0/2.10.0/loaders"
+export GTK_PATH="${GTK}/lib/gtk-2.0"
 XP=/opt/xo1-xulrunner
 for d in "$XP/lib" "$XP"; do
   [ -d "$d" ] || continue
@@ -173,6 +176,11 @@ EOF
 
   cat >/opt/xo1-tls/bin/xo1-browse <<'EOF'
 #!/bin/sh
+if [ -z "${DISPLAY:-}" ]; then
+  echo "xo1-browse needs the Sugar desktop (X11), not an SSH shell."
+  echo "Run from the XO-1 screen, or: export DISPLAY=:0"
+  exit 1
+fi
 . /opt/xo1-tls/bin/xo1-env.sh
 if command -v sugar-launch >/dev/null 2>&1; then
   exec sugar-launch org.laptop.WebActivity "$@"
