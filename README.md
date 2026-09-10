@@ -146,6 +146,12 @@ Host xo1 olpc-xo1 10.0.0.25
     StrictHostKeyChecking accept-new
 ```
 
+After saving the config, connect with:
+
+```powershell
+ssh xo1
+```
+
 **Rules for OpenSSH 9.5+ Windows:**
 
 | Wrong | Correct |
