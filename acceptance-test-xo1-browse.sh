@@ -11,7 +11,6 @@
 set -eu
 
 BROWSE=/opt/xo1-tls/bin/xo1-browse
-ENV_WRAPPER=/opt/xo1-tls/bin/xo1-env.sh
 LIVE=0
 [ "${1:-}" = "--live" ] && LIVE=1
 export DISPLAY=${DISPLAY:-:0}
@@ -54,10 +53,10 @@ else
   fail "xo1-browse missing or not executable ($BROWSE)"
 fi
 
-if [ -f "$ENV_WRAPPER" ]; then
-  pass "xo1-env.sh compatibility wrapper exists"
+if [ ! -f /opt/xo1-tls/bin/xo1-env.sh ]; then
+  pass "single script only (no xo1-env.sh wrapper)"
 else
-  fail "xo1-env.sh missing ($ENV_WRAPPER)"
+  fail "xo1-env.sh should be removed; use xo1-browse only"
 fi
 
 for libdir in /opt/xo1-gtk2/lib /opt/xo1-tls/lib; do
@@ -108,21 +107,6 @@ if (
   pass "sourcing xo1-browse sets env without launching Browse"
 else
   fail "sourcing xo1-browse failed env checks or crashed"
-fi
-
-if (
-  unset LD_LIBRARY_PATH MOZILLA_FIVE_HOME PATH
-  PATH=/usr/bin:/bin
-  . "$ENV_WRAPPER"
-  case ":${LD_LIBRARY_PATH:-}:" in *:/opt/xo1-tls/lib:*) ;; *)
-    echo "xo1-env.sh wrapper did not apply LD_LIBRARY_PATH"
-    exit 1
-    ;;
-  esac
-); then
-  pass "xo1-env.sh wrapper sources xo1-browse correctly"
-else
-  fail "xo1-env.sh wrapper failed"
 fi
 
 # --- executed outside Sugar must fail gracefully (no DBus traceback) ---

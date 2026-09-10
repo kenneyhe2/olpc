@@ -40,7 +40,7 @@ http://http.pkgforge.dev/https://raw.githubusercontent.com/kenneyhe2/olpc/main/i
 
 1. **HTTP wget** (pkgforge, no TLS on XO) — bootstrap `xo-openssl-curl-xo1-i586-glibc212.tar.gz`
 2. **Bundled curl** — fetch gtk2 + xulrunner tarballs over HTTPS
-3. **Deploy** — extract under `/opt`, write unified `xo1-browse` (env + Browse launcher; `xo1-env.sh` is a thin wrapper)
+3. **Deploy** — extract under `/opt`, write single `xo1-browse` (env + kill prior Browse + launcher)
 
 Skips download for any tarball already in the same directory as `install.sh`.
 

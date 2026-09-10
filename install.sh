@@ -307,12 +307,6 @@ fi
 _xo1_launch_browse "$@"
 EOF
   chmod 755 /opt/xo1-tls/bin/xo1-browse
-
-  cat >/opt/xo1-tls/bin/xo1-env.sh <<'EOF'
-# Compatibility wrapper — prefer: . /opt/xo1-tls/bin/xo1-browse
-. /opt/xo1-tls/bin/xo1-browse
-EOF
-  chmod 755 /opt/xo1-tls/bin/xo1-env.sh
 }
 
 need_root
