@@ -5,19 +5,37 @@ Dynamically linked libraries for OLPC XO-1 (**Geode / i586**), **curl**, and **S
 ## Quick start
 
 1. **Windows** — fix SSH config (below), then `ssh xo1`
-2. **XO-1** — bootstrap curl tarball with **plain HTTP wget** (no TLS on the XO)
-3. **XO-1** — fetch remaining files with bundled curl, run `install.sh`
+2. **XO-1** — HTTP wget `install.sh`, run it (fetch + deploy in one script)
+
+```sh
+U='http://http.pkgforge.dev/https://raw.githubusercontent.com'
+U="$U/kenneyhe2/olpc/main/install.sh"
+echo "$U"
+wget -O install.sh "$U"
+chmod +x install.sh
+sudo ./install.sh
+```
+
+`echo` must print **one line** with **no spaces** in the middle of the path:
+
+```text
+http://http.pkgforge.dev/https://raw.githubusercontent.com/kenneyhe2/olpc/main/install.sh
+```
 
 ## Artifacts (repo root)
 
 | File | Notes |
 |------|--------|
-| `xo-openssl-curl-xo1-i586-glibc212.tar.gz` | **Bootstrap first** — OpenSSL 1.1.1w + curl 7.88.1 (GLIBC 2.12 build) |
-| `xo-openssl-curl-xo1-i586.tar.gz` | Same payload, alternate name on `main` |
+| `install.sh` | **One script** — HTTP wget bootstrap, fetch rest, extract to `/opt` |
+| `xo-openssl-curl-xo1-i586-glibc212.tar.gz` | OpenSSL 1.1.1w + curl 7.88.1 (fetched by `install.sh`) |
 | `xo-gtk2-xo1-i586-glibc212.tar.gz` | `libgtk-x11-2.0.so.0` + deps |
 | `xo-xulrunner-1.9.2-geode-i586.tar.gz` | FC14 xulrunner for Browse |
-| `install.sh` | Deploy script |
-| `download-xo1.sh` | Fetch all artifacts on XO (uses HTTP proxy wget) |
+
+`install.sh` does three phases automatically:
+
+1. **HTTP wget** (pkgforge) — bootstrap `xo-openssl-curl-xo1-i586-glibc212.tar.gz` if needed
+2. **Bundled curl** — fetch gtk2 + xulrunner tarballs over HTTPS
+3. **Deploy** — extract all tarballs under `/opt`, write `xo1-env.sh` / `xo1-browse`
 
 ---
 
@@ -59,7 +77,7 @@ Host xo1 olpc-xo1 10.0.0.25
 | `KexAlgorithms +algo1,+algo2,+algo3` | `KexAlgorithms +algo1,algo2,algo3` (one `+` at start only) |
 | `Ciphers +aes128-ctr,+aes256-ctr,...` | `Ciphers +aes128-ctr,aes256-ctr,...` |
 
-Standalone config file: copy `ssh-config-xo1-only` to `%USERPROFILE%\.ssh\config-xo1`, then:
+Standalone config: copy `ssh-config-xo1-only` to `%USERPROFILE%\.ssh\config-xo1`, then:
 
 ```powershell
 ssh -F $env:USERPROFILE\.ssh\config-xo1 xo1
@@ -77,63 +95,24 @@ ssh xo1 whoami
 
 ## Download on XO-1 (no HTTPS — use HTTP wget)
 
-Stock **curl** and **wget** on XO-1 often fail TLS (`unable to establish SSL connection`). Do **not** use `https://` URLs on the XO for the bootstrap step.
+Stock **curl** and **wget** on XO-1 often fail TLS (`unable to establish SSL connection`). Do **not** use `https://` URLs on the XO for the first step.
 
 Use **plain HTTP** via [pkgforge](http://http.pkgforge.dev/) — it fetches the GitHub `raw` URL server-side and serves it over HTTP to the XO.
 
-### Step 1 — bootstrap curl tarball (HTTP wget)
-
-On the XO-1 terminal. Build the URL in **pieces** (avoids line-wrap / paste errors):
+### One command — fetch and install
 
 ```sh
 U='http://http.pkgforge.dev/https://raw.githubusercontent.com'
-U="$U/kenneyhe2/olpc/main/xo-openssl-curl-xo1-i586-glibc212.tar.gz"
+U="$U/kenneyhe2/olpc/main/install.sh"
 echo "$U"
-wget -O xo-openssl-curl-xo1-i586-glibc212.tar.gz "$U"
-```
-
-`echo` must print **one line** with **no spaces** in the middle of the path, e.g.:
-
-```text
-http://http.pkgforge.dev/https://raw.githubusercontent.com/kenneyhe2/olpc/main/xo-openssl-curl-xo1-i586-glibc212.tar.gz
-```
-
-Then extract:
-
-```sh
-sudo tar -C / -xzf xo-openssl-curl-xo1-i586-glibc212.tar.gz
-export LD_LIBRARY_PATH=/opt/xo1-tls/lib
-/opt/xo1-tls/bin/curl -V
-```
-
-### Step 2 — fetch remaining artifacts (bundled curl + HTTPS)
-
-After bootstrap, `/opt/xo1-tls/bin/curl` has OpenSSL 1.1.1w and can use HTTPS:
-
-```sh
-REPO=https://raw.githubusercontent.com/kenneyhe2/olpc/main
-mkdir -p ~/olpc && cd ~/olpc
-
-/opt/xo1-tls/bin/curl -fSL -o xo-gtk2-xo1-i586-glibc212.tar.gz \
-  "$REPO/xo-gtk2-xo1-i586-glibc212.tar.gz"
-/opt/xo1-tls/bin/curl -fSL -o xo-xulrunner-1.9.2-geode-i586.tar.gz \
-  "$REPO/xo-xulrunner-1.9.2-geode-i586.tar.gz"
-/opt/xo1-tls/bin/curl -fSL -o install.sh "$REPO/install.sh"
+wget -O install.sh "$U"
 chmod +x install.sh
-```
-
-Or fetch `download-xo1.sh` the same HTTP way, then run it (phase 1 skips if curl already installed):
-
-```sh
-U='http://http.pkgforge.dev/https://raw.githubusercontent.com'
-U="$U/kenneyhe2/olpc/main/download-xo1.sh"
-echo "$U"
-wget -O download-xo1.sh "$U"
-chmod +x download-xo1.sh
-sudo ./download-xo1.sh
+sudo ./install.sh
 ```
 
 ### HTTP wget helper (any repo file)
+
+Build URL in pieces, `echo` then `wget` (no `--no-check-certificate`):
 
 ```sh
 pkgforge() {
@@ -148,7 +127,7 @@ pkgforge xo-openssl-curl-xo1-i586-glibc212.tar.gz
 
 ### Fallback — SCP from Windows
 
-If HTTP wget also fails on the XO, download on Windows and `scp` after SSH works:
+If HTTP wget fails on the XO, copy tarballs from Windows after SSH works:
 
 ```powershell
 $TGZ = "xo-openssl-curl-xo1-i586-glibc212.tar.gz"
@@ -156,7 +135,7 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/kenneyhe2/olpc/main/$T
 scp $env:TEMP\$TGZ xo1:/tmp/
 ```
 
-On XO: `sudo tar -C / -xzf /tmp/$TGZ` then continue at Step 2.
+On XO: place tarballs next to `install.sh` and run `sudo ./install.sh` (skips fetch for files already present).
 
 ### Verify checksums (optional)
 
@@ -171,24 +150,23 @@ On XO-1: `md5sum <file>`
 
 ---
 
-## Deploy on XO-1
+## After install
 
 ```sh
-cd ~/olpc   # or /tmp/olpc-fetch after download-xo1.sh
-sudo ./install.sh
 /opt/xo1-tls/bin/curl -V
 /opt/xo1-tls/bin/curl -I https://example.com
 . /opt/xo1-tls/bin/xo1-env.sh
 /opt/xo1-tls/bin/xo1-browse
 ```
 
-## Automate from Windows (SSH + HTTP wget on XO)
+## Automate from Windows (SSH)
 
 ```powershell
 ssh xo1 @"
 U='http://http.pkgforge.dev/https://raw.githubusercontent.com'
-U=\"\$U/kenneyhe2/olpc/main/download-xo1.sh\"
-wget -O download-xo1.sh \"\$U\" && chmod +x download-xo1.sh && sudo ./download-xo1.sh
+U=\"\$U/kenneyhe2/olpc/main/install.sh\"
+echo \"\$U\"
+wget -O install.sh \"\$U\" && chmod +x install.sh && sudo ./install.sh
 "@
 ```
 

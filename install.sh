@@ -1,9 +1,20 @@
 #!/bin/sh
-# Deploy XO-1 i586 dynamic lib tarballs under /opt (curl + GTK2 + xulrunner).
-# Usage (on XO): copy this script next to the xo-*.tar.gz files, then:
-#   sudo ./install.sh
+# Fetch and deploy XO-1 i586 libs (curl + GTK2 + xulrunner) on OLPC XO-1.
+#
+# On XO-1 — plain HTTP wget (no TLS on the XO):
+#   U='http://http.pkgforge.dev/https://raw.githubusercontent.com'
+#   U="$U/kenneyhe2/olpc/main/install.sh"
+#   echo "$U"
+#   wget -O install.sh "$U"
+#   chmod +x install.sh && sudo ./install.sh
 set -eu
+
 HERE=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
+REPO=https://raw.githubusercontent.com/kenneyhe2/olpc/main
+PKGFORGE='http://http.pkgforge.dev/https://raw.githubusercontent.com'
+CURL_TGZ=xo-openssl-curl-xo1-i586-glibc212.tar.gz
+GTK_TGZ=xo-gtk2-xo1-i586-glibc212.tar.gz
+XUL_TGZ=xo-xulrunner-1.9.2-geode-i586.tar.gz
 
 need_root() {
   [ "$(id -u)" -eq 0 ] || {
@@ -17,41 +28,121 @@ pick() {
   ls -1 "$HERE"/$1 2>/dev/null | head -1 || true
 }
 
-need_root
-
-CURL_TGZ=$(pick 'xo-openssl-curl-xo1-i586*.tar.gz')
-GTK_TGZ=$(pick 'xo-gtk2-xo1-i586*.tar.gz')
-XUL_TGZ=$(pick 'xo-xulrunner-*-geode-i586.tar.gz')
-[ -n "$XUL_TGZ" ] || XUL_TGZ=$(pick 'xo-xulrunner-*.tar.gz')
-
-[ -n "$CURL_TGZ" ] || {
-  echo "missing openssl/curl tarball (xo-openssl-curl-xo1-i586*.tar.gz)"
-  exit 1
-}
-[ -n "$GTK_TGZ" ] || {
-  echo "missing gtk2 tarball (xo-gtk2-xo1-i586*.tar.gz)"
-  exit 1
+pkgforge_url() {
+  echo "$PKGFORGE/kenneyhe2/olpc/main/$1"
 }
 
-echo "==> Extract $CURL_TGZ"
-tar -C / -xzf "$CURL_TGZ"
-echo "==> Extract $GTK_TGZ"
-tar -C / -xzf "$GTK_TGZ"
-if [ -n "$XUL_TGZ" ]; then
-  echo "==> Extract $XUL_TGZ"
-  tar -C / -xzf "$XUL_TGZ"
-else
-  echo "WARN: no xulrunner tarball yet (Sugar Browse engine not installed)"
-fi
+xo_curl_ok() {
+  [ -x /opt/xo1-tls/bin/curl ] && \
+    LD_LIBRARY_PATH=/opt/xo1-tls/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH} \
+      /opt/xo1-tls/bin/curl -V >/dev/null 2>&1
+}
 
-if ls /opt/xo1-gtk2/lib/libgtk-3.so* >/dev/null 2>&1; then
-  echo "ERROR: libgtk-3 found under /opt/xo1-gtk2 (GTK3 not allowed)"
-  exit 1
-fi
+wget_http() {
+  file=$1
+  dest=$2
+  url=$(pkgforge_url "$file")
+  if ! command -v wget >/dev/null 2>&1; then
+    echo "ERROR: wget not found."
+    scp_hint "$file"
+    exit 1
+  fi
+  echo "==> URL: $url"
+  if ! wget -O "$dest" "$url"; then
+    echo "ERROR: wget failed for $url"
+    scp_hint "$file"
+    exit 1
+  fi
+}
 
-mkdir -p /opt/xo1-tls/bin
+scp_hint() {
+  file=$1
+  echo ""
+  echo "Copy $file from another machine, or retry HTTP wget:"
+  echo "  U='http://http.pkgforge.dev/https://raw.githubusercontent.com'"
+  echo "  U=\"\$U/kenneyhe2/olpc/main/$file\""
+  echo "  echo \"\$U\""
+  echo "  wget -O $file \"\$U\""
+}
 
-cat >/opt/xo1-tls/bin/xo1-env.sh <<'EOF'
+xo_curl() {
+  LD_LIBRARY_PATH=/opt/xo1-tls/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH} \
+    /opt/xo1-tls/bin/curl -fSL "$@"
+}
+
+fetch_artifacts() {
+  curl_local=$(pick 'xo-openssl-curl-xo1-i586*.tar.gz')
+  gtk_local=$(pick 'xo-gtk2-xo1-i586*.tar.gz')
+  xul_local=$(pick 'xo-xulrunner-*-geode-i586.tar.gz')
+  [ -n "$xul_local" ] || xul_local=$(pick 'xo-xulrunner-*.tar.gz')
+
+  [ -n "$curl_local" ] && [ -n "$gtk_local" ] && return 0
+
+  echo "==> Fetch artifacts into $HERE"
+
+  if [ -z "$curl_local" ]; then
+    if ! xo_curl_ok; then
+      echo "==> Bootstrap curl/OpenSSL via HTTP wget (pkgforge)"
+      wget_http "$CURL_TGZ" "$HERE/$CURL_TGZ"
+      echo "==> Extract $CURL_TGZ -> /opt/xo1-tls"
+      tar -C / -xzf "$HERE/$CURL_TGZ"
+      if ! xo_curl_ok; then
+        echo "ERROR: /opt/xo1-tls/bin/curl not runnable after extract"
+        exit 1
+      fi
+      LD_LIBRARY_PATH=/opt/xo1-tls/lib /opt/xo1-tls/bin/curl -V | head -1
+    fi
+    if [ ! -f "$HERE/$CURL_TGZ" ]; then
+      echo "    -> $CURL_TGZ"
+      xo_curl -o "$HERE/$CURL_TGZ" "$REPO/$CURL_TGZ"
+    fi
+  fi
+
+  if [ -z "$gtk_local" ]; then
+    echo "    -> $GTK_TGZ"
+    xo_curl -o "$HERE/$GTK_TGZ" "$REPO/$GTK_TGZ"
+  fi
+
+  if [ -z "$xul_local" ]; then
+    echo "    -> $XUL_TGZ"
+    xo_curl -o "$HERE/$XUL_TGZ" "$REPO/$XUL_TGZ"
+  fi
+}
+
+deploy_artifacts() {
+  CURL_TGZ_PATH=$(pick 'xo-openssl-curl-xo1-i586*.tar.gz')
+  GTK_TGZ_PATH=$(pick 'xo-gtk2-xo1-i586*.tar.gz')
+  XUL_TGZ_PATH=$(pick 'xo-xulrunner-*-geode-i586.tar.gz')
+  [ -n "$XUL_TGZ_PATH" ] || XUL_TGZ_PATH=$(pick 'xo-xulrunner-*.tar.gz')
+
+  [ -n "$CURL_TGZ_PATH" ] || {
+    echo "missing openssl/curl tarball (xo-openssl-curl-xo1-i586*.tar.gz)"
+    exit 1
+  }
+  [ -n "$GTK_TGZ_PATH" ] || {
+    echo "missing gtk2 tarball (xo-gtk2-xo1-i586*.tar.gz)"
+    exit 1
+  }
+
+  echo "==> Extract $CURL_TGZ_PATH"
+  tar -C / -xzf "$CURL_TGZ_PATH"
+  echo "==> Extract $GTK_TGZ_PATH"
+  tar -C / -xzf "$GTK_TGZ_PATH"
+  if [ -n "$XUL_TGZ_PATH" ]; then
+    echo "==> Extract $XUL_TGZ_PATH"
+    tar -C / -xzf "$XUL_TGZ_PATH"
+  else
+    echo "WARN: no xulrunner tarball (Sugar Browse engine not installed)"
+  fi
+
+  if ls /opt/xo1-gtk2/lib/libgtk-3.so* >/dev/null 2>&1; then
+    echo "ERROR: libgtk-3 found under /opt/xo1-gtk2 (GTK3 not allowed)"
+    exit 1
+  fi
+
+  mkdir -p /opt/xo1-tls/bin
+
+  cat >/opt/xo1-tls/bin/xo1-env.sh <<'EOF'
 # source: . /opt/xo1-tls/bin/xo1-env.sh
 [ -f /opt/xo1-gtk2/gtk2-env.sh ] && . /opt/xo1-gtk2/gtk2-env.sh
 XP=/opt/xo1-xulrunner
@@ -78,9 +169,9 @@ if [ -d /opt/xo1-xulrunner ]; then
 fi
 export PATH="/opt/xo1-tls/bin:${PATH:-}"
 EOF
-chmod 755 /opt/xo1-tls/bin/xo1-env.sh
+  chmod 755 /opt/xo1-tls/bin/xo1-env.sh
 
-cat >/opt/xo1-tls/bin/xo1-browse <<'EOF'
+  cat >/opt/xo1-tls/bin/xo1-browse <<'EOF'
 #!/bin/sh
 . /opt/xo1-tls/bin/xo1-env.sh
 if command -v sugar-launch >/dev/null 2>&1; then
@@ -92,7 +183,13 @@ fi
 echo "Sugar Browse launcher not found (sugar-launch / sugar-activity)"
 exit 1
 EOF
-chmod 755 /opt/xo1-tls/bin/xo1-browse
+  chmod 755 /opt/xo1-tls/bin/xo1-browse
+}
+
+need_root
+cd "$HERE"
+fetch_artifacts
+deploy_artifacts
 
 echo "==> Done"
 echo "Smoke:"
