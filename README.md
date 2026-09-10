@@ -21,7 +21,7 @@ sudo ./install.sh
 /opt/xo1-tls/bin/curl -I https://example.com
 . /opt/xo1-tls/bin/xo1-browse          # env only (safe to source)
 /opt/xo1-tls/bin/xo1-browse            # launch Browse (Sugar session)
-/opt/xo1-tls/bin/xo1-browse http://www.yahoo.com
+/opt/xo1-tls/bin/xo1-browse http://www.yahoo.com   # kills existing Browse, then opens URL
 ```
 
 ## Acceptance test

@@ -132,8 +132,50 @@ _xo1_normalize_uri_args() {
   done
 }
 
+_xo1_kill_browse() {
+  command -v pgrep >/dev/null 2>&1 || return 0
+
+  _xo1_signal_pids() {
+    sig=$1
+    pattern=$2
+    pids=$(pgrep -u "$(id -u)" -f "$pattern" 2>/dev/null || true)
+    [ -z "$pids" ] && return 0
+    for pid in $pids; do
+      [ "$pid" -eq "$$" ] && continue
+      if [ -n "$sig" ]; then
+        kill "$sig" "$pid" 2>/dev/null || true
+      else
+        kill "$pid" 2>/dev/null || true
+      fi
+    done
+  }
+
+  for pattern in \
+    'sugar-activity[[:space:]]+Browse' \
+    'sugar-activity[[:space:]]+webactivity\.WebActivity' \
+    'org\.laptop\.WebActivity' \
+    'Browse\.activity' \
+    '/opt/xo1-xulrunner'
+  do
+    _xo1_signal_pids '' "$pattern"
+  done
+
+  sleep 1
+
+  for pattern in \
+    'sugar-activity[[:space:]]+Browse' \
+    'sugar-activity[[:space:]]+webactivity\.WebActivity' \
+    'org\.laptop\.WebActivity' \
+    'Browse\.activity' \
+    '/opt/xo1-xulrunner'
+  do
+    _xo1_signal_pids -9 "$pattern"
+  done
+}
+
 _xo1_launch_browse() {
   _xo1_normalize_uri_args "$@"
+  _xo1_kill_browse
 
   if command -v sugar-launch >/dev/null 2>&1 && _xo1_sugar_shell_running; then
     if [ -n "${_XO1_URI:-}" ]; then

@@ -177,6 +177,37 @@ else
 fi
 rm -rf "$MOCK_BIN" "$MOCK_LOG"
 
+# --- kill existing Browse before launch ---
+FAKE_STUB=/tmp/xo1-browse-kill-stub
+rm -rf "$FAKE_STUB"
+mkdir -p "$FAKE_STUB/Browse.activity"
+cat >"$FAKE_STUB/Browse.activity/run" <<'EOF'
+#!/bin/sh
+sleep 120
+EOF
+chmod +x "$FAKE_STUB/Browse.activity/run"
+"$FAKE_STUB/Browse.activity/run" &
+FAKE_PID=$!
+sleep 1
+MOCK_BIN2=$(mktemp -d /tmp/xo1-mock-bin2.XXXXXX)
+cat >"$MOCK_BIN2/sugar-activity" <<'EOF'
+#!/bin/sh
+exit 0
+EOF
+chmod +x "$MOCK_BIN2/sugar-activity"
+if (
+  export PATH="$MOCK_BIN2:/usr/bin:/bin"
+  /opt/xo1-tls/bin/xo1-browse http://www.yahoo.com >/dev/null 2>&1
+  kill -0 "$FAKE_PID" 2>/dev/null
+); then
+  fail "kill-all-then-launch left existing Browse.activity process running"
+  kill -9 "$FAKE_PID" 2>/dev/null || true
+else
+  pass "kill-all-then-launch stops existing Browse before new launch"
+  wait "$FAKE_PID" 2>/dev/null || true
+fi
+rm -rf "$FAKE_STUB" "$MOCK_BIN2"
+
 # --- TLS curl still works with sourced env ---
 if [ -x /opt/xo1-tls/bin/curl ]; then
   if (
