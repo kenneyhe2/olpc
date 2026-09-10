@@ -4,11 +4,13 @@
 # Bootstrap: wget --no-check-certificate for the curl/OpenSSL tarball only, extract to /opt,
 # then use /opt/xo1-tls/bin/curl for the remaining files.
 #
-# Usage on XO-1:
+# Usage on XO-1 (when wget SSL works):
 #   wget --no-check-certificate -O download-xo1.sh \
 #     https://raw.githubusercontent.com/kenneyhe2/olpc/main/download-xo1.sh
-#   chmod +x download-xo1.sh
-#   sudo ./download-xo1.sh
+#   chmod +x download-xo1.sh && sudo ./download-xo1.sh
+#
+# When BOTH curl and wget fail SSL: SCP xo-openssl-curl-xo1-i586.tar.gz from
+# Windows first (see README), extract to /opt, then re-run this script.
 set -eu
 
 REPO=https://raw.githubusercontent.com/kenneyhe2/olpc/main
@@ -38,12 +40,30 @@ xo_curl_ok() {
 wget_insecure() {
   url=$1
   dest=$2
-  if command -v wget >/dev/null 2>&1; then
-    wget --no-check-certificate -O "$dest" "$url"
-    return 0
+  if ! command -v wget >/dev/null 2>&1; then
+    echo "ERROR: wget not found."
+    scp_fallback "$dest"
+    exit 1
   fi
-  echo "ERROR: wget not found; install wget or copy $dest from another machine"
-  exit 1
+  if ! wget --no-check-certificate -O "$dest" "$url"; then
+    echo "ERROR: wget failed (often: unable to establish SSL connection on old OpenSSL)."
+    scp_fallback "$dest"
+    exit 1
+  fi
+}
+
+scp_fallback() {
+  dest=$1
+  echo ""
+  echo "Bootstrap tarball must be copied from a machine with working HTTPS."
+  echo "  File needed: $dest"
+  echo "  URL:         $REPO/$dest"
+  echo ""
+  echo "From Windows (after fixing SSH — see README ssh-config-windows-xo1.example):"
+  echo "  Invoke-WebRequest -Uri $REPO/$dest -OutFile %TEMP%\\$dest"
+  echo "  scp %TEMP%\\$dest xo1:/tmp/$dest"
+  echo "  sudo tar -C / -xzf /tmp/$dest"
+  echo "  sudo $0    # re-run this script"
 }
 
 xo_curl() {

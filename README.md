@@ -11,11 +11,62 @@ Dynamically linked libraries for OLPC XO-1 (**Geode / i586**), **curl**, and **S
 | `install.sh` | Deploy script |
 | `download-xo1.sh` | Fetch all artifacts from GitHub on a bare XO-1 |
 
-## Download on XO-1 (system curl broken)
+## Download on XO-1 (system curl / wget SSL broken)
 
-GitHub serves files only over HTTPS. On XO-1 the stock **curl** often fails TLS handshake or is missing entirely. **wget** is usually present and accepts `--no-check-certificate` (TLS verify disabled — use only on a trusted network).
+GitHub serves files only over HTTPS. On XO-1 the stock **curl** often fails with:
 
-### One-shot (recommended)
+```text
+curl: (35) error:1407742E:SSL routines:SSL23_GET_SERVER_HELLO:tlsv1 alert protocol version
+```
+
+or simply **unable to establish SSL connection**. The same error can hit **wget** even with `--no-check-certificate` — that flag skips certificate *verification*, but the TLS handshake can still fail on old OpenSSL (no TLS 1.2, no SNI, weak ciphers).
+
+**Artifact to bootstrap first:** `xo-openssl-curl-xo1-i586.tar.gz` (~4.8 MB, i586/Geode, OpenSSL 1.1.1w + curl 7.88.1). Everything else is fetched with the bundled curl after extract.
+
+| Phase | Tool | What |
+|-------|------|------|
+| 1 — bootstrap | wget *or* SCP from Windows | `xo-openssl-curl-xo1-i586.tar.gz` only |
+| 2 — fetch rest | `/opt/xo1-tls/bin/curl` | gtk2, xulrunner, `install.sh` |
+
+### When both curl and wget fail SSL (use SCP from Windows)
+
+If HTTPS is dead on the XO, download on a modern machine and copy over SSH (see [SSH from Windows](#ssh-from-windows-openssh-9x--xo-1-openssh-55) below for legacy algorithm fixes).
+
+**On Windows (PowerShell)** — after `ssh xo1` works:
+
+```powershell
+$REPO = "https://raw.githubusercontent.com/kenneyhe2/olpc/main"
+$TGZ  = "xo-openssl-curl-xo1-i586.tar.gz"
+Invoke-WebRequest -Uri "$REPO/$TGZ" -OutFile $env:TEMP\$TGZ
+scp $env:TEMP\$TGZ xo1:/tmp/
+```
+
+**On XO-1** — extract bootstrap curl, then fetch the rest:
+
+```sh
+sudo tar -C / -xzf /tmp/xo-openssl-curl-xo1-i586.tar.gz
+export LD_LIBRARY_PATH=/opt/xo1-tls/lib
+/opt/xo1-tls/bin/curl -V
+
+REPO=https://raw.githubusercontent.com/kenneyhe2/olpc/main
+cd /tmp
+/opt/xo1-tls/bin/curl -fSL -o xo-gtk2-xo1-i586-glibc212.tar.gz "$REPO/xo-gtk2-xo1-i586-glibc212.tar.gz"
+/opt/xo1-tls/bin/curl -fSL -o xo-xulrunner-1.9.2-geode-i586.tar.gz "$REPO/xo-xulrunner-1.9.2-geode-i586.tar.gz"
+/opt/xo1-tls/bin/curl -fSL -o install.sh "$REPO/install.sh"
+chmod +x install.sh && sudo ./install.sh
+```
+
+Or push the full fetch script after copying only the tarball:
+
+```powershell
+scp $env:TEMP\xo-openssl-curl-xo1-i586.tar.gz xo1:/tmp/
+scp download-xo1.sh xo1:/tmp/
+ssh xo1 "sudo tar -C / -xzf /tmp/xo-openssl-curl-xo1-i586.tar.gz && chmod +x /tmp/download-xo1.sh && sudo WORKDIR=/tmp/olpc-fetch /tmp/download-xo1.sh"
+```
+
+### One-shot (when wget SSL works)
+
+If `wget --no-check-certificate` succeeds (TLS verify disabled — trusted network only):
 
 ```sh
 wget --no-check-certificate -O download-xo1.sh \
@@ -30,9 +81,9 @@ cd /tmp/olpc-fetch && sudo ./install.sh
 1. **Bootstrap** — `wget --no-check-certificate` fetches only `xo-openssl-curl-xo1-i586.tar.gz` (~4.8 MB), extracts it to `/opt/xo1-tls`.
 2. **Fetch rest** — `/opt/xo1-tls/bin/curl` (with bundled OpenSSL 1.1.1w) downloads gtk2, xulrunner, and `install.sh`.
 
-### Manual bootstrap (step by step)
+### Manual bootstrap (wget works, step by step)
 
-If you prefer to type commands yourself:
+If `wget --no-check-certificate` works but system curl does not:
 
 ```sh
 REPO=https://raw.githubusercontent.com/kenneyhe2/olpc/main
@@ -140,6 +191,32 @@ Then connect with:
 ```powershell
 ssh xo1
 ```
+
+#### Fix "Bad key types" / "Bad SSH2 KexAlgorithms" on Windows
+
+If `ssh -v olpc@10.0.0.25` shows errors like these, your `~/.ssh/config` needs the syntax above:
+
+```text
+Bad key types '+ssh-rsa,+ssh-dss'.
+Unsupported KEX algorithm "+diffie-hellman-group14-sha1"
+Bad SSH2 KexAlgorithms '+diffie-hellman-group-exchange-sha256,+diffie-hellman-group14-sha1,...'
+Bad SSH2 cipher spec '+aes128-ctr,+aes256-ctr,...'
+```
+
+| Cause | Fix |
+|-------|-----|
+| `ssh-dss` in `HostKeyAlgorithms` | Remove it; use `HostKeyAlgorithms +ssh-rsa` only |
+| `+` before every algorithm in a list | Use **one** leading `+` per option, e.g. `KexAlgorithms +diffie-hellman-group14-sha1,diffie-hellman-group-exchange-sha1` |
+| Stale config on line 6 / 10 / 12 / 13 | Edit `C:\Users\citadelone\.ssh\config` and replace the `Host 10.0.0.25` block with the block in section 2 |
+
+Check what your Windows client still supports:
+
+```powershell
+ssh -Q key
+ssh -Q kex
+```
+
+You should see `ssh-rsa` under key types; `ssh-dss` will be missing on OpenSSH 9.5+.
 
 ### 3. RSA key + authorized_keys (passwordless automation)
 
