@@ -19,8 +19,8 @@ chmod +x install.sh
 sudo ./install.sh
 /opt/xo1-tls/bin/curl -V
 /opt/xo1-tls/bin/curl -I https://example.com
-. /opt/xo1-tls/bin/xo1-env.sh
-/opt/xo1-tls/bin/xo1-browse
+. /opt/xo1-tls/bin/xo1-browse          # env only (safe to source)
+/opt/xo1-tls/bin/xo1-browse            # launch Browse (Sugar session)
 ```
 
 ## Host

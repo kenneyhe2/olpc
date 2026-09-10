@@ -51,51 +51,91 @@ fi
 
 mkdir -p /opt/xo1-tls/bin
 
-cat >/opt/xo1-tls/bin/xo1-env.sh <<'EOF'
-# source: . /opt/xo1-tls/bin/xo1-env.sh
-[ -f /opt/xo1-gtk2/gtk2-env.sh ] && . /opt/xo1-gtk2/gtk2-env.sh
-XP=/opt/xo1-xulrunner
-for d in "$XP/lib" "$XP"; do
-  [ -d "$d" ] || continue
-  case ":${LD_LIBRARY_PATH:-}:" in *":$d:"*) ;; *)
-    LD_LIBRARY_PATH="$d${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-    ;;
-  esac
-done
-for d in /opt/xo1-xulrunner/lib/xulrunner-*; do
-  [ -d "$d" ] || continue
-  case ":${LD_LIBRARY_PATH:-}:" in *":$d:"*) ;; *)
-    LD_LIBRARY_PATH="$d${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-    ;;
-  esac
-done
-LD_LIBRARY_PATH="/opt/xo1-gtk2/lib:/opt/xo1-tls/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-export LD_LIBRARY_PATH
-if [ -d /opt/xo1-xulrunner ]; then
-  MOZILLA_FIVE_HOME=$(ls -d /opt/xo1-xulrunner/lib/xulrunner-* 2>/dev/null | head -1 || true)
-  [ -n "${MOZILLA_FIVE_HOME:-}" ] || MOZILLA_FIVE_HOME=/opt/xo1-xulrunner
-  export MOZILLA_FIVE_HOME
-fi
-export PATH="/opt/xo1-tls/bin:${PATH:-}"
-EOF
-chmod 755 /opt/xo1-tls/bin/xo1-env.sh
-
 cat >/opt/xo1-tls/bin/xo1-browse <<'EOF'
 #!/bin/sh
-. /opt/xo1-tls/bin/xo1-env.sh
-if command -v sugar-launch >/dev/null 2>&1; then
-  exec sugar-launch org.laptop.WebActivity "$@"
+# XO-1 TLS/GTK2/XULRunner environment and Sugar Browse launcher.
+#
+# Source for library paths only (does not launch Browse):
+#   . /opt/xo1-tls/bin/xo1-browse
+#
+# Execute to apply env and launch Browse:
+#   /opt/xo1-tls/bin/xo1-browse
+
+_xo1_is_sourced() {
+  if [ -n "${BASH_VERSION:-}" ]; then
+    [ "${BASH_SOURCE[0]:-}" != "${0}" ]
+  else
+    case "$0" in */xo1-browse|xo1-browse) return 1 ;; esac
+    return 0
+  fi
+}
+
+_xo1_apply_env() {
+  [ -f /opt/xo1-gtk2/gtk2-env.sh ] && . /opt/xo1-gtk2/gtk2-env.sh
+  XP=/opt/xo1-xulrunner
+  for d in "$XP/lib" "$XP"; do
+    [ -d "$d" ] || continue
+    case ":${LD_LIBRARY_PATH:-}:" in *":$d:"*) ;; *)
+      LD_LIBRARY_PATH="$d${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+      ;;
+    esac
+  done
+  for d in /opt/xo1-xulrunner/lib/xulrunner-*; do
+    [ -d "$d" ] || continue
+    case ":${LD_LIBRARY_PATH:-}:" in *":$d:"*) ;; *)
+      LD_LIBRARY_PATH="$d${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+      ;;
+    esac
+  done
+  LD_LIBRARY_PATH="/opt/xo1-gtk2/lib:/opt/xo1-tls/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+  export LD_LIBRARY_PATH
+  if [ -d /opt/xo1-xulrunner ]; then
+    MOZILLA_FIVE_HOME=$(ls -d /opt/xo1-xulrunner/lib/xulrunner-* 2>/dev/null | head -1 || true)
+    [ -n "${MOZILLA_FIVE_HOME:-}" ] || MOZILLA_FIVE_HOME=/opt/xo1-xulrunner
+    export MOZILLA_FIVE_HOME
+  fi
+  export PATH="/opt/xo1-tls/bin:${PATH:-}"
+}
+
+_xo1_sugar_shell_running() {
+  command -v dbus-send >/dev/null 2>&1 || return 1
+  dbus-send --session --print-reply --dest=org.freedesktop.DBus \
+    /org/freedesktop/DBus org.freedesktop.DBus.NameHasOwner \
+    string:org.laptop.Shell 2>/dev/null \
+    | grep -q 'boolean true'
+}
+
+_xo1_launch_browse() {
+  if command -v sugar-launch >/dev/null 2>&1 && _xo1_sugar_shell_running; then
+    exec sugar-launch org.laptop.WebActivity "$@"
+  fi
+  if command -v sugar-activity >/dev/null 2>&1; then
+    exec sugar-activity Browse "$@"
+  fi
+  echo "Sugar Browse unavailable (Sugar shell not running or launcher missing)." >&2
+  echo "Source for TLS/GTK paths only: . /opt/xo1-tls/bin/xo1-browse" >&2
+  exit 1
+}
+
+_xo1_apply_env
+
+if _xo1_is_sourced; then
+  return 0 2>/dev/null || exit 0
 fi
-if command -v sugar-activity >/dev/null 2>&1; then
-  exec sugar-activity Browse "$@"
-fi
-echo "Sugar Browse launcher not found (sugar-launch / sugar-activity)"
-exit 1
+
+_xo1_launch_browse "$@"
 EOF
 chmod 755 /opt/xo1-tls/bin/xo1-browse
+
+cat >/opt/xo1-tls/bin/xo1-env.sh <<'EOF'
+# Compatibility wrapper — prefer: . /opt/xo1-tls/bin/xo1-browse
+. /opt/xo1-tls/bin/xo1-browse
+EOF
+chmod 755 /opt/xo1-tls/bin/xo1-env.sh
 
 echo "==> Done"
 echo "Smoke:"
 echo "  /opt/xo1-tls/bin/curl -V"
 echo "  /opt/xo1-tls/bin/curl -I https://example.com"
-echo "  . /opt/xo1-tls/bin/xo1-env.sh && /opt/xo1-tls/bin/xo1-browse"
+echo "  . /opt/xo1-tls/bin/xo1-browse && /opt/xo1-tls/bin/curl -I https://example.com"
+echo "  /opt/xo1-tls/bin/xo1-browse   # launch Browse (Sugar session required)"
