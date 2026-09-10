@@ -93,11 +93,19 @@ XO-1 also does **not** accept `ed25519` keys (added in OpenSSH 6.5). Use **RSA**
 
 **Quote the `-o` values** — PowerShell treats bare commas as array separators and breaks algorithm lists.
 
+**OpenSSH 9.5+ on Windows** (`OpenSSH_for_Windows_9.5p2` and newer) removed `ssh-dss` at compile time. Do **not** include `ssh-dss` — it causes `Bad key types '+ssh-rsa,+ssh-dss'`. XO-1 also offers `ssh-rsa`, which is enough.
+
 ```powershell
-ssh -o "HostKeyAlgorithms=+ssh-rsa,+ssh-dss" -o "PubkeyAcceptedAlgorithms=+ssh-rsa" olpc@10.0.0.25
+ssh -o "HostKeyAlgorithms=+ssh-rsa" -o "PubkeyAcceptedAlgorithms=+ssh-rsa" olpc@10.0.0.25
 ```
 
-If that connects but a later step fails on ciphers/KEX, use the full `Host` block below.
+If you see `no matching key exchange method found`, add KEX (one `+` at the start of the list only):
+
+```powershell
+ssh -o "HostKeyAlgorithms=+ssh-rsa" -o "PubkeyAcceptedAlgorithms=+ssh-rsa" -o "KexAlgorithms=+diffie-hellman-group14-sha1,diffie-hellman-group-exchange-sha1" olpc@10.0.0.25
+```
+
+If that connects but a later step fails on ciphers, use the full `Host` block below.
 
 ### 2. Persistent config (recommended)
 
@@ -109,11 +117,11 @@ Host xo1 olpc-xo1 10.0.0.25
     User olpc
     IdentityFile ~/.ssh/id_rsa_olpc
 
-    # Legacy algorithms required for OpenSSH 5.5 on XO-1
-    HostKeyAlgorithms +ssh-rsa,+ssh-dss
+    # Legacy algorithms for OpenSSH 5.5 on XO-1 (OpenSSH 9.5+ Windows: no ssh-dss; one "+" per line)
+    HostKeyAlgorithms +ssh-rsa
     PubkeyAcceptedAlgorithms +ssh-rsa
-    KexAlgorithms +diffie-hellman-group-exchange-sha256,+diffie-hellman-group14-sha1,+diffie-hellman-group-exchange-sha1,+diffie-hellman-group1-sha1
-    Ciphers +aes128-ctr,+aes256-ctr,+aes128-cbc,+aes256-cbc
+    KexAlgorithms +diffie-hellman-group-exchange-sha256,diffie-hellman-group14-sha1,diffie-hellman-group-exchange-sha1,diffie-hellman-group1-sha1
+    Ciphers +aes128-ctr,aes256-ctr,aes128-cbc,aes256-cbc
     MACs +hmac-sha2-256,hmac-sha1
 
     # Automation on a trusted LAN only (skip host-key prompts)

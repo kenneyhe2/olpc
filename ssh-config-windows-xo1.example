@@ -1,18 +1,26 @@
 # Copy to C:\Users\<you>\.ssh\config (merge with existing Host blocks).
 # XO-1 runs OpenSSH 5.5 — modern Windows OpenSSH needs legacy algorithm overrides.
 #
+# OpenSSH 9.5+ on Windows (Git for Windows, built-in OpenSSH):
+#   - ssh-dss is removed at compile time — do NOT list it (causes "Bad key types").
+#   - Use only ONE leading "+" per option; extra "+" before later algorithms breaks parsing.
+#
 # PowerShell one-liner (quote -o values; bare commas break the command):
-#   ssh -o "HostKeyAlgorithms=+ssh-rsa,+ssh-dss" -o "PubkeyAcceptedAlgorithms=+ssh-rsa" olpc@10.0.0.25
+#   ssh -o "HostKeyAlgorithms=+ssh-rsa" -o "PubkeyAcceptedAlgorithms=+ssh-rsa" olpc@10.0.0.25
+#
+# If negotiation still fails on KEX/ciphers, add (one + only):
+#   -o "KexAlgorithms=+diffie-hellman-group14-sha1,diffie-hellman-group-exchange-sha1"
 
 Host xo1 olpc-xo1 10.0.0.25
     HostName 10.0.0.25
     User olpc
     IdentityFile ~/.ssh/id_rsa_olpc
 
-    HostKeyAlgorithms +ssh-rsa,+ssh-dss
+    # ssh-rsa only — XO-1 also offers ssh-dss but Windows OpenSSH 9.5+ cannot use it
+    HostKeyAlgorithms +ssh-rsa
     PubkeyAcceptedAlgorithms +ssh-rsa
-    KexAlgorithms +diffie-hellman-group-exchange-sha256,+diffie-hellman-group14-sha1,+diffie-hellman-group-exchange-sha1,+diffie-hellman-group1-sha1
-    Ciphers +aes128-ctr,+aes256-ctr,+aes128-cbc,+aes256-cbc
+    KexAlgorithms +diffie-hellman-group-exchange-sha256,diffie-hellman-group14-sha1,diffie-hellman-group-exchange-sha1,diffie-hellman-group1-sha1
+    Ciphers +aes128-ctr,aes256-ctr,aes128-cbc,aes256-cbc
     MACs +hmac-sha2-256,hmac-sha1
 
     # Trusted LAN automation: accept first connect, or use both lines below to disable checks entirely
