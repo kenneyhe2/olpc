@@ -1,0 +1,17 @@
+# Standalone SSH config for XO-1 only. Use when your main config is broken:
+#   ssh -F $env:USERPROFILE\.ssh\config-xo1 olpc@10.0.0.25
+#
+# Or copy this file to C:\Users\<you>\.ssh\config-xo1 and:
+#   ssh -F $env:USERPROFILE\.ssh\config-xo1 xo1
+
+Host xo1 olpc-xo1 10.0.0.25
+    HostName 10.0.0.25
+    User olpc
+    IdentityFile ~/.ssh/id_rsa_olpc
+
+    HostKeyAlgorithms +ssh-rsa
+    PubkeyAcceptedAlgorithms +ssh-rsa
+    KexAlgorithms +diffie-hellman-group-exchange-sha256,diffie-hellman-group14-sha1,diffie-hellman-group-exchange-sha1,diffie-hellman-group1-sha1
+    Ciphers +aes128-ctr,aes256-ctr,aes128-cbc,aes256-cbc
+    MACs +hmac-sha2-256,hmac-sha1
+    StrictHostKeyChecking accept-new
