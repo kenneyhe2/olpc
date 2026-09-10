@@ -144,7 +144,7 @@ On XO: place tarballs next to `install.sh` and run `sudo ./install.sh` (skips fe
 | `xo-openssl-curl-xo1-i586-glibc212.tar.gz` | `ae2950be7950f33fee5adc4fdc50adf9` |
 | `xo-gtk2-xo1-i586-glibc212.tar.gz` | `414c040cdd79322f229ff086acbbeb0a` |
 | `xo-xulrunner-1.9.2-geode-i586.tar.gz` | `9a9bf96ced17b919585504aa09707193` |
-| `install.sh` | `b65e79902d10a63f0d5fdf0760c41b8c` |
+| `install.sh` | `e80901da513d0da69b6d9097fb926567` |
 
 On XO-1: `md5sum <file>`
 
